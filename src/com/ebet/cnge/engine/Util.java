@@ -49,6 +49,11 @@ public class Util
 		GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 	}
 	
+	public static void clear_depth()
+	{
+		GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT);
+	}
+	
 	/*                             */
 	/*        matrix helper        */
 	/*                             */

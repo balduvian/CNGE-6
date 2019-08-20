@@ -12,7 +12,7 @@ import org.w3c.dom.Text;
 import java.security.spec.RSAOtherPrimeInfo;
 import java.util.Map;
 
-import static com.ebet.cnge.engine.Transform.matrify;
+import static com.ebet.cnge.engine.Transform.*;
 import static com.ebet.cnge.engine.Util.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
@@ -49,6 +49,8 @@ public class Scene
 	private static Framebuffer block_buffer;
 	
 	private static float[][][] buildings;
+	
+	private static Gradient_Shader gradient_shader;
 	
 	public Scene(Framebuffer game_buffer, Window window, Camera camera, Camera_3D camera_3d)
 	{
@@ -88,8 +90,9 @@ public class Scene
 		game_font = new Game_Font(camera, sdf_shader, rect);
 		texture_3D_shader = new Texture_3D_Shader();
 		fade_3D_shader = new Fade_3D_Shader();
+		gradient_shader = new Gradient_Shader();
 		
-		buildings = create_buildings(50, 2, 100);
+		buildings = create_buildings(20, 3, 50, 1.5f);
 		
 		var rand_map = Block_Map.from_image("res/images/level.png", rgb ->
 		{
@@ -153,8 +156,9 @@ public class Scene
 					transform_3d.translation.set(x * 2, y * 2, 8);
 					transform_3d.scale.set(2, 2, 2);
 					
+					final var ang = (float)(Math.PI / 4);
 					texture_3D_shader.enable(transform_3d.matrify(), camera_3d.get_projection_view());
-					texture_3D_shader.give(1, 1, 1, 1);
+					texture_3D_shader.give(1, 1, 1, 1, -ang, ang * 1.1f, -ang, 0.3f, 0.7f);
 					
 					cube.render();
 				}
@@ -165,8 +169,9 @@ public class Scene
 					transform_3d.translation.set(x * 2, y * 2, 8);
 					transform_3d.scale.set(2, 2, 2);
 					
-					color_shader.enable(transform_3d.matrify(), camera_3d.get_projection_view());
-					color_shader.give(1, 1, 1, 1);
+					texture_3D_shader.enable(transform_3d.matrify(), camera_3d.get_projection_view());
+					final var ang = (float)(Math.PI / 4);
+					texture_3D_shader.give(1, 1, 1, 1, -ang, ang * 1.1f, -ang, 0.3f, 0.7f);
 					
 					cube.render();
 				}
@@ -176,6 +181,8 @@ public class Scene
 		map.transform.scale.set(2, 2);
 	}
 	
+	float rx, ry, rz = 0;
+	
 	float rot = 0;
 	
 	public void update(double time)
@@ -184,14 +191,17 @@ public class Scene
 		
 		if(window.get_key_down(0))
 		{
+			rx += time;
 			camera_3d.transform.translation.add(0, speed, 0);
 		}
 		if(window.get_key_down(1))
 		{
+			ry += time;
 			camera_3d.transform.translation.add(-speed, 0, 0);
 		}
 		if(window.get_key_down(2))
 		{
+			rz += time;
 			camera_3d.transform.translation.add(0, -speed, 0);
 		}
 		if(window.get_key_down(3))
@@ -207,20 +217,26 @@ public class Scene
 		camera_3d.update();
 	}
 	
-	public float[][][] create_buildings(int density, int rows, float base_height)
+	public static float rand_range(float low, float high)
 	{
-		// height, row_offset, density_offset, base_width, base_depth
-		var ret = new float[rows][density][5];
+		return (float)(Math.random() * (high - low) + low);
+	}
+	
+	public float[][][] create_buildings(int density, int rows, float base_height, float back_multiply)
+	{
+		// height, desnsity_along
+		var ret = new float[rows][density][2];
 		
 		for(int i = 0; i < rows; ++i)
 		{
+			var row_along = ((float)i / rows);
+			var row_next = (i + 1f) / rows;
+			var along_mul = row_along * back_multiply;
+			var next_mul = row_next * back_multiply;
+			
 			for(int j = 0; j < density; ++j)
 			{
-				ret[i][j][0] = (float)(base_height * Math.random() * (1 + (float)i / rows));
-				for(int k = 1; k < 5; ++k)
-				{
-					ret[i][j][k] = (float)(Math.random());
-				}
+				ret[i][j][0] = rand_range(base_height * along_mul, base_height * next_mul);
 			}
 		}
 		
@@ -235,11 +251,22 @@ public class Scene
 		
 		depth_test();
 		
-		// render the background
-		esh_texture.bind();
+		// render sky graident
+		//gradient_shader.enable(default_model, default_projection);
+		//gradient_shader.give( 0.27f, 0.36f, 0.79f, 1, 0.01f, 0.04f, 0.22f, 1);
 		
+		//up_rect.render();
+		
+		//clear_depth();
+		
+		depth_test();
+		
+		// render the background
 		var back_size = 250f;
 		var start_line = 50f;
+		
+		/*
+
 		
 		transform_3d.translation.set(-back_size / 2, 0, 0);
 		transform_3d.scale.set(back_size, back_size, 1);
@@ -250,7 +277,9 @@ public class Scene
 		
 		transform_3d.rotation.set(0, 0, 0);
 		
-		up_rect.render();
+		up_rect.render();*/
+		
+		var down = -100;
 		
 		var rows = buildings.length;
 		var dens = buildings[0].length;
@@ -259,16 +288,19 @@ public class Scene
 	
 		for(int i = 0; i < rows; ++i)
 		{
+			var row_along = (float)i / rows;
+			var row_inv = 1 - row_along;
+			
 			for(int j = 0; j < dens; ++j)
 			{
-				var z = start_line + (back_size - start_line) * ((float)i / rows);
+				var z = start_line + (back_size - start_line) * row_along;
 				var x = ((float)j / dens) * back_size - (back_size / 2);
 				
-				transform_3d.translation.set(x, 0, z);
-				transform_3d.scale.set(w_space * buildings[i][j][3], buildings[i][j][0], w_space * buildings[i][j][4]);
+				transform_3d.translation.set(x, down, z);
+				transform_3d.scale.set(w_space, buildings[i][j][0] - down, w_space);
 				
 				fade_3D_shader.enable(transform_3d.matrify(), camera_3d.get_projection_view());
-				fade_3D_shader.give(1, 0.25f, 0.1f, 1, start_line, back_size);
+				fade_3D_shader.give(0.5f * row_inv, 0.5f * row_inv, 0.55f * row_inv, 1, -50, 0);
 				
 				cube.render();
 			}

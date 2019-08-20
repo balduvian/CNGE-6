@@ -174,24 +174,27 @@ abstract public class Shader
 	
 	// givers
 	
-	protected Shader give_vec2(float x, float y)
-	{
-		glUniform2f(locations[location_pointer], x, y);
-		++location_pointer;
-		return this;
-	}
-	
-	protected Shader give_vec4(float x, float y, float z, float w)
-	{
-		glUniform4f(locations[location_pointer], x, y, z, w);
-		++location_pointer;
-		return this;
-	}
-	
-	protected Shader give_float(float x)
+	protected void give_float(float x)
 	{
 		glUniform1f(locations[location_pointer], x);
 		++location_pointer;
-		return this;
+	}
+	
+	protected void give_vec2(float x, float y)
+	{
+		glUniform2f(locations[location_pointer], x, y);
+		++location_pointer;
+	}
+	
+	protected void give_vec3(float x, float y, float z)
+	{
+		glUniform3f(locations[location_pointer], x, y, z);
+		++location_pointer;
+	}
+	
+	protected void give_vec4(float x, float y, float z, float w)
+	{
+		glUniform4f(locations[location_pointer], x, y, z, w);
+		++location_pointer;
 	}
 }
